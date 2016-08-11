@@ -1,0 +1,4 @@
+C:\Users\madog\Documents\Projects\Hangman\Hangman\bin\Debug\Hangman.exe
+C:\Users\madog\Documents\Projects\Hangman\Hangman\bin\Debug\Hangman.pdb
+C:\Users\madog\Documents\Projects\Hangman\Hangman\obj\x86\Debug\Hangman.exe
+C:\Users\madog\Documents\Projects\Hangman\Hangman\obj\x86\Debug\Hangman.pdb
