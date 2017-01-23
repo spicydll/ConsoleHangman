@@ -1,71 +1,86 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
+using System.Threading;	// May be used in final release
 
 namespace Hangman
 {
 	class MainClass
 	{
-		static string version = "1.0";
-		static readonly ConsoleColor defaultColor = Console.ForegroundColor;
+		// Class variables for Command line stuff
+		static string version = "0.7.8";
+		static readonly ConsoleColor defaultColor = Console.ForegroundColor;	// color to change back to after color is changed
+
+		// Instance variables to reduce amount of parameters needed to type
 		Hangman hangman;
-		HangmanImageFileProcessor hifp;
+		HangmanImageProcessor hip;
 		HangmanDictionaryFileProcessor hdfp;
-		bool firstPass;
-		bool customWord;
+		bool firstPass;		// used by various methods. Is true when the status code should be set to zero
 
 
-		private MainClass(bool customWord, HangmanImageFileProcessor hifp, HangmanDictionaryFileProcessor hdfp)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="T:Hangman.MainClass"/> class.
+		/// </summary>
+		/// <param name="hip">Hifp.</param>
+		/// <param name="hdfp">Hdfp.</param>
+		MainClass(HangmanImageProcessor hip, HangmanDictionaryFileProcessor hdfp)
 		{
-			this.hifp = hifp;
+			this.hip = hip;
 			this.hdfp = hdfp;
 			hangman = new Hangman(hdfp.getRandomWord());
-			this.customWord = customWord;
 			firstPass = true;
 		}
 
-		private MainClass(Hangman hangman, HangmanImageFileProcessor hifp)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="T:Hangman.MainClass"/> class.
+		/// </summary>
+		/// <param name="hangman">Hangman.</param>
+		/// <param name="hip">Hip.</param>
+		MainClass(Hangman hangman, HangmanImageProcessor hip)
 		{
 			this.hangman = hangman;
-			this.hifp = hifp;
+			this.hip = hip;
 			hdfp = null;
-			customWord = false;
 			firstPass = true;
 		}
 
 		public static void Main (string[] args)
 		{
+			// test client code
+
 			try
 			{
-				var mc = new MainClass(new Hangman("Foo"), new HangmanImageFileProcessor("HangmanImages.txt"));
+				var mc = handleArguments(args);
 
 				mc.runHangman();
 			}
-			catch (FileNotFormattedException e)
-			{
-				displayException(e);
-			}
-			catch (FileNotFoundException e)
-			{
-				displayException(e);
-			}
-			catch (IOException e)
+			catch (Exception e)
 			{
 				displayException(e);
 			}
 		}
 
-
+		/// <summary>
+		/// Handles the arguments.
+		/// </summary>
+		/// <returns>a MainClass object representing the objects created.</returns>
+		/// <param name="args">Arguments the argument array.</param>
 		public static MainClass handleArguments(string[] args)
 		{
+			// Initialize game objects
 			Hangman hangman = null;
-			HangmanImageFileProcessor hifp = null;
+			HangmanImageProcessor hip = null;
 			HangmanDictionaryFileProcessor hdfp = null;
-			bool customWord = false;
-			int currentArg = 0;
 
+			// Initialize other variables
+			bool isCustom = false;
+			int currentArg = 0;
+			bool exceptionThrown = false;
+			bool needToPause = false;
+
+			// Traverse the arguments
 			while (currentArg < args.Length)
 			{
+				// check the argument
 				switch (args[currentArg])
 				{
 					case "-i":
@@ -75,45 +90,83 @@ namespace Hangman
 
 							if (currentArg < args.Length)
 							{
-								hifp = new HangmanImageFileProcessor(args[currentArg]);
+								// create image file processor from arguments
+								try
+								{
+									hip = new HangmanImageFileProcessor(args[currentArg]);
+								}
+								catch (Exception e)
+								{
+									displayException(e);
+									needToPause = true;
+									hip = null;
+								}
 							}
 							else
 							{
+
+								// -i did not have anything to follow it
 								throw new FormatException("Image File Location was not specified.");
 							}
 							break;
 						}
 
 					case "-d":
-					case "-dictionaryFile":
+					case "-DictionaryFile":
 						{
 							currentArg++;
 
-							if (currentArg < args.Length)
+							try
 							{
-								hdfp = new HangmanDictionaryFileProcessor(args[currentArg]);
+								if (currentArg < args.Length)
+								{
+									// create dictionary file processor from arguments
+									hdfp = new HangmanDictionaryFileProcessor(args[currentArg]);
+								}
+								else {
+									// -d did not have anything to follow it
+									throw new FormatException("Dictionary File location was not specified.");
+								}
+								break;
 							}
-							else {
-								throw new FormatException("Dictionary File location was not specified.");
+							catch (Exception e)
+							{
+								displayException(e);
+								exceptionThrown = true;
+								hdfp = null;
+								needToPause = true;
 							}
+
 							break;
 						}
 
-					case "-W":
+					case "-w":
 					case "-Word":
 						{
-							customWord = true;
+							isCustom = true;
+							currentArg++;
+							if (currentArg < args.Length &&
+								HangmanDictionaryFileProcessor
+								.checkStringLettersOnly(args[currentArg]))
+							{
+								hangman = new Hangman(args[currentArg]);
+							}
+
 							break;
 						}
 
 					default:
 						{
-							if (HangmanDictionaryFileProcessor.checkStringLettersOnly(args[currentArg]))
+							if (hangman == null && HangmanDictionaryFileProcessor.checkStringLettersOnly(args[currentArg]))
 							{
+								// create Hangman using argument as word
 								hangman = new Hangman(args[currentArg]);
+								isCustom = true;
 							}
-							else {
-								throw new FormatException("Explicit Word argument contained illegal character(s)");
+							else if (hangman == null) 
+							{
+								// Word was not formatted correctly
+								throw new FormatException("Default Word argument contained illegal character(s)");
 							}
 
 							break;
@@ -123,22 +176,98 @@ namespace Hangman
 				currentArg++;
 			}
 
-			if (hifp == null)
+			// Check whether defaults should be used
+			if (hip == null)
 			{
-				hifp = new HangmanImageFileProcessor(HangmanImageFileProcessor.DEFAULT_LOCATION);
-			}
-
-			if (!customWord)
-			{
-				if (hdfp == null)
+				Console.WriteLine("Using Default image file . . .");
+				try
 				{
-					hdfp = new HangmanDictionaryFileProcessor(HangmanDictionaryFileProcessor.DEFAULT_LOCATION);
+					hip = new HangmanImageFileProcessor(HangmanImageFileProcessor.DEFAULT_LOCATION);
+				}
+				catch (Exception e)
+				{
+					displayException(e);
+					exceptionThrown = true;
+					hip = null;
+					needToPause = true;
+				}
+
+				if (exceptionThrown)
+				{
+					Console.WriteLine("Using Hardcoded Image . . .");
+					hip = new DefaultHangmanImageProcessor(7);
 				}
 			}
 
-			return null;	// Temporary For compiler sake
+			if (!isCustom)
+			{
+				if (hdfp == null)
+				{
+					try
+					{
+						Console.WriteLine("Using default Dictionary file . . .");
+						hdfp = new HangmanDictionaryFileProcessor(HangmanDictionaryFileProcessor.DEFAULT_LOCATION);
+					}
+					catch (Exception e)
+					{
+						displayException(e);
+						needToPause = true;
+						hdfp = null;
+						throw;
+					}
+				}
+
+				if (needToPause)
+				{
+					Console.WriteLine("Press any key to continue. . .");
+					Console.ReadKey(true);
+				}
+
+				return new MainClass(hip, hdfp);
+			}
+			else 
+			{
+				string word = "";
+				bool isWord = true;
+
+				if (hangman == null)
+				{
+					do
+					{
+						if (!isWord)
+						{
+							Console.WriteLine("\nThat's not an acceptable word! Try again.");
+							word = "";
+						}
+
+						Console.Write("Enter word to guess (Don't worry, it's hidden): ");
+
+						ConsoleKeyInfo keyPressed;
+
+						while ((keyPressed = Console.ReadKey(true)).Key != ConsoleKey.Enter)
+						{
+							word += keyPressed.KeyChar;
+						}
+
+					}
+					while (!(isWord = HangmanDictionaryFileProcessor.checkStringLettersOnly(word)));
+
+					hangman = new Hangman(word);
+				}
+
+				if (needToPause)
+				{
+					Console.WriteLine("Press any key to continue. . .");
+					Console.ReadKey(true);
+				}
+
+				return new MainClass(hangman, hip);
+			}
 		}
 
+		/// <summary>
+		/// Runs the hangman game.
+		/// </summary>
 		public void runHangman()
 		{
 			int statusCode;
@@ -155,6 +284,7 @@ namespace Hangman
 
 				if (input.Key == ConsoleKey.Y)
 				{
+					Console.Clear();
 					return;	// Exits the program
 				}
 
@@ -163,6 +293,7 @@ namespace Hangman
 			}
 
 			Console.ReadKey(true);
+			Console.Clear();
 		}
 
 		/// <summary>
@@ -203,7 +334,7 @@ namespace Hangman
 					return 1;
 				}
 
-				if (hangman.getErrors() == hifp.getNumImages() - 2)
+				if (hangman.getErrors() == hip.getNumImages() - 2)
 				{
 					return 9;
 				}
@@ -220,6 +351,10 @@ namespace Hangman
 			return 3;	// Invalid input
 		}
 
+		/// <summary>
+		/// Gets the input from the command line.
+		/// </summary>
+		/// <returns>A character representing what was pressed</returns>
 		public static char getInput()
 		{
 			var keyPressed = Console.ReadKey(true);
@@ -236,6 +371,11 @@ namespace Hangman
 			return '~'; // a Tilde will mean the user entered an incorrect key. Prompt using updateInterface(3);
 		}
 
+		/// <summary>
+		/// Determines if the key is a letter.
+		/// </summary>
+		/// <returns><c>true</c>, if key is a letter, <c>false</c> otherwise.</returns>
+		/// <param name="key">Key.</param>
 		public static bool isKeyALetter(ConsoleKey key)
 		{
 			return key >= ConsoleKey.A && key <= ConsoleKey.Z;
@@ -252,15 +392,16 @@ namespace Hangman
 			Console.SetCursorPosition(0, 0);
 
 			// Print Version Line
-			Console.WriteLine("Console Hangman v{0} ([ESC] to exit)\n", version);
+			Console.WriteLine("Console Hangman v{0} ([ESC] to exit)", version);
+			Console.WriteLine("(c) Mason Schmidgall 2016 - 2018. All rights reserved.\n");
 
 			// Print Current Hangman image
 			if (statusCode == 8)
 			{
-				Console.WriteLine(hifp.getVictoryImage() + "\n");
+				Console.WriteLine(hip.getVictoryImage() + "\n");
 			}
 			else {
-				Console.WriteLine(hifp.getImage(hangman.getErrors()) + "\n");
+				Console.WriteLine(hip.getImage(hangman.getErrors()) + "\n");
 			}
 
 			// Print Current State
@@ -317,6 +458,11 @@ namespace Hangman
 			Console.ForegroundColor = startColor;
 		}
 
+		/// <summary>
+		/// Gets the status message using the status code provided.
+		/// </summary>
+		/// <returns>The status message.</returns>
+		/// <param name="statusCode">Status code.</param>
 		public static string getStatusMessage(int statusCode)
 		{
 			switch (statusCode)
@@ -334,18 +480,28 @@ namespace Hangman
 			}
 		}
 
+		/// <summary>
+		/// Determines if the game should be suspended.
+		/// </summary>
+		/// <returns><c>true</c>, if status code is a suspension code, <c>false</c> otherwise.</returns>
+		/// <param name="statusCode">Status code.</param>
 		public static bool isGameSuspended(int statusCode)
 		{
 			switch (statusCode)
 			{
-				case 8:
-				case 9:
-				case -1: return true;
+				case 8:	// Victory
+				case 9:	// Loss
+				case -1: return true;	// Quit
 
 				default: return false;
 			}
 		}
 
+		/// <summary>
+		/// Determines what the status message's color should be based on the status code.
+		/// </summary>
+		/// <returns>The status color.</returns>
+		/// <param name="statusCode">Status code.</param>
 		public static ConsoleColor getStatusColor(int statusCode)
 		{
 			switch (statusCode)
@@ -364,14 +520,19 @@ namespace Hangman
 		}
 	}
 
+	/// <summary>
+	/// An Object that represents the hangman game.
+	/// </summary>
 	class Hangman
 	{
+		// Instance variables
 		private string word;
 		private string state;
 		private bool[] lettersGuessed;
 		private int errors;
 		private bool victory;
 
+		// These variables may be deprecated
 		public static char LOWER_CHARACTER_OFFSET = 'a';
 		public static char UPPER_CHARACTER_OFFSET = 'A';
 
@@ -389,6 +550,10 @@ namespace Hangman
 			victory = false;
 		}
 
+		/// <summary>
+		/// Gets the victory (You can figure it out).
+		/// </summary>
+		/// <returns><c>true</c>, if victory was gotten, <c>false</c> otherwise.</returns>
 		public bool getVictory()
 		{
 			return victory;
@@ -563,14 +728,19 @@ namespace Hangman
 		}
 	}
 
-	class HangmanImageFileProcessor
+	class HangmanImageFileProcessor : HangmanImageProcessor
 	{
+		// Instance varibles
 		string[] images;
 		int currentImage;
 		readonly string fileLocation;
 
 		public static string DEFAULT_LOCATION = "HangmanImages.hif";
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="T:Hangman.HangmanImageFileProcessor"/> class.
+		/// </summary>
+		/// <param name="fileLocation">File location.</param>
 		public HangmanImageFileProcessor(string fileLocation)
 		{
 			this.fileLocation = fileLocation;
@@ -578,6 +748,11 @@ namespace Hangman
 			currentImage = -1;
 		}
 
+		/// <summary>
+		/// Gets the image using the imageLocation as the index.
+		/// </summary>
+		/// <returns>The image.</returns>
+		/// <param name="imageLocation">Image location.</param>
 		public string getImage(int imageLocation)
 		{
 			currentImage = imageLocation;
@@ -591,30 +766,43 @@ namespace Hangman
 		}
 		*/
 
+		/// <summary>
+		/// Gets the victory image (Last image in the array).
+		/// </summary>
+		/// <returns>The victory image.</returns>
 		public string getVictoryImage()
 		{
 			return getImage(images.Length - 1);
 		}
 
+		/// <summary>
+		/// Reads the images from the file.
+		/// </summary>
 	 	void readImages()
 		{
+			// Line read
 			string line;
 
 			try
 			{
+				// Scan the file to check format and get number of images
 				int numImages = scanFile(fileLocation);
 
+				// create a streamReader at the filelocation
 				var file = new StreamReader(@fileLocation);
 				if (numImages != 0)
 				{
-
+					// create a new string array to hold the images
 					images = new string[numImages];
 
+					// read to "@0" token to ignore any file header comments
 					while (!(line = file.ReadLine()).Equals("@0")) { }
 
+					// Read the images
 					string token;
 					for (int i = 1; i <= images.Length; i++)
 					{
+						// determine next image to look for
 						if (i == numImages)
 						{
 							token = "@@@";
@@ -629,17 +817,21 @@ namespace Hangman
 
 						string imageString = "";
 
+						// read until the next token is reached
 						while (!(line = file.ReadLine()).Equals(token))
 						{
 							imageString += line + "\n";
 						}
 
+						// save the image that was read
 						images[i - 1] = imageString;
 					}
 				}
 
+				// close the stream reader
 				file.Close();
 			}
+			// catch the exceptions thrown by the scanfile method
 			catch (UnexpectedEndOfFileException e)
 			{
 				throw new FileNotFormattedException("Image file was not formatted correctly:", e);
@@ -662,17 +854,26 @@ namespace Hangman
 			}
 		}
 
+		/// <summary>
+		/// Scans the file for formatting errors and counts the number of images.
+		/// </summary>
+		/// <returns>The file.</returns>
+		/// <param name="fileLocation">File location.</param>
 		private static int scanFile(string fileLocation)
 		{
+			// a bunch of self explainitory variables
 			string text;
 			int i = 0;
 			bool lastImageReached = false;
 			var file = new StreamReader(@fileLocation);
 
+			// traverse the file
 			while ((text = file.ReadLine()) != null)
 			{
+				// check if the line is a normal token
 				if (isCharPlusNumber(text, '@'))   // The "@@" Token will be used before the victory image
 				{
+					// check if tokens are in right order
 					if (!text.Equals("@" + i))
 					{
 						throw new FileNotFormattedException("Image tokens are in wrong order.");
@@ -680,24 +881,33 @@ namespace Hangman
 
 					i++;
 				}
+				// check if it's a victory token
 				else if (text.Equals("@@"))
 				{
+					// check if another token appeared after the first victory image token
 					if (lastImageReached)
 					{
 						// Another Image Entry was detected after the Victory Image
 						// Allowing File processing to continue past this would cause an incorrect image to display at victory
 						throw new UnxepectedTokenException("File contained another non-End-Of" +
-														   "-File token after the \"@@\" token.");
+						                                   "-File token after the \"@@\" (Victory Image) token.");
 					}
 
-					lastImageReached = true;  // just means lastImageReached is set true if text == "@@"
+					lastImageReached = true;  // lastImageReached is set true if text == "@@"
 
 					i++;
 				}
 				else if (text.Equals("@@@"))	// The "@@@" Token means End Of File. Any lines after this will be ignored
 				{
-					file.Close();
-					return i;
+					if (lastImageReached)
+					{
+						file.Close();
+						return i;
+					}
+					else
+					{
+						throw new UnxepectedTokenException("A \"@@@\" (EOF) token was found before a \"@@\" (Victory Image) token");
+					}
 				}
 
 
@@ -708,6 +918,10 @@ namespace Hangman
 			throw new UnexpectedEndOfFileException("File ended before a \"@@@\" token was found.");
 		}
 
+		/// <summary>
+		/// Gets the number images in the images array.
+		/// </summary>
+		/// <returns>The number images.</returns>
 		public int getNumImages()
 		{
 			return images.Length;
@@ -727,7 +941,7 @@ namespace Hangman
 				if (text[0] == '@')
 				{
 					string[] s = text.Split('@');
-					return int.TryParse(s[1], out value);
+					return int.TryParse(s[1], out value);	// the value is ignored
 				}
 			}
 
@@ -737,24 +951,36 @@ namespace Hangman
 
 	public class HangmanDictionaryFileProcessor
 	{
+		// A couple self explainitory instance variables
 		string[] words;
 		readonly string fileLocation;
 
 		public static string DEFAULT_LOCATION = "words.txt";
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="T:Hangman.HangmanDictionaryFileProcessor"/> class.
+		/// </summary>
+		/// <param name="fileLocation">File location.</param>
 		public HangmanDictionaryFileProcessor(string fileLocation)
 		{
 			this.fileLocation = fileLocation;
 			readFile();
 		}
 
+		/// <summary>
+		/// Returns a random word from the dictionary file
+		/// </summary>
+		/// <returns>The random word.</returns>
 		public string getRandomWord()
 		{
-			Random rdm = new Random();
+			var rdm = new Random();
 
 			return words[rdm.Next(words.Length)];
 		}
 
+		/// <summary>
+		/// Reads the file.
+		/// </summary>
 		private void readFile()
 		{
 			var file = new StreamReader(@fileLocation);
@@ -765,6 +991,7 @@ namespace Hangman
 
 			while ((text = file.ReadLine()) != null)
 			{
+				// make sure the word will play nice with the hangman object
 				if (checkStringLettersOnly(text)) {
 					words = addElementToArray(text, words);
 				}
@@ -774,21 +1001,32 @@ namespace Hangman
 
 			if (words.Length == 0)
 			{
-				throw new EmptyFileException("No words were found in the dictionary file.");
+				throw new EmptyFileException("No words were found in the dictionary file.");	// figure it out
 			}
 		}
 
+		/// <summary>
+		/// Adds the element to the given array.
+		/// </summary>
+		/// <returns>The array with the added element.</returns>
+		/// <param name="element">Element.</param>
+		/// <param name="array">Array.</param>
 		public static string[] addElementToArray(string element, string[] array)
 		{
+
+			// create an array with a size of one larger than the one provided
 			string[] newArray = new string[array.Length + 1];
 
+			// copy elements to the array
 			for (int i = 0; i < array.Length; i++)
 			{
 				newArray[i] = array[i];
 			}
 
+			// add the given element to the last position of the new array
 			newArray[newArray.Length - 1] = element;
 
+			// return to sender
 			return newArray;
 		}
 
@@ -811,6 +1049,43 @@ namespace Hangman
 		}
 	}
 
+	class DefaultHangmanImageProcessor : HangmanImageProcessor
+	{
+		int numImages;
+
+		public DefaultHangmanImageProcessor(int numImages)
+		{
+			this.numImages = numImages;
+		}
+
+		public string getImage(int imageLocation)
+		{
+			return "Errors: " + imageLocation;
+		}
+
+		public int getNumImages()
+		{
+			return numImages;
+		}
+
+		public string getVictoryImage()
+		{
+			return "You Win!";
+		}
+
+
+	}
+
+	interface HangmanImageProcessor
+	{
+		string getImage(int imageLocation);
+
+		string getVictoryImage();
+
+		int getNumImages();
+	}
+
+	// Skeletons for exceptions below
 	public class UnxepectedTokenException : Exception
 	{
 		public UnxepectedTokenException() { }

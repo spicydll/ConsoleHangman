@@ -2,3 +2,7 @@ C:\Users\madog\Documents\Projects\Hangman\Hangman\bin\Debug\Hangman.exe
 C:\Users\madog\Documents\Projects\Hangman\Hangman\bin\Debug\Hangman.pdb
 C:\Users\madog\Documents\Projects\Hangman\Hangman\obj\x86\Debug\Hangman.exe
 C:\Users\madog\Documents\Projects\Hangman\Hangman\obj\x86\Debug\Hangman.pdb
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\bin\Debug\Hangman.exe
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\bin\Debug\Hangman.pdb
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.exe
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.pdb
