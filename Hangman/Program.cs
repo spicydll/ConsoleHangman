@@ -7,14 +7,15 @@ namespace Hangman
 	class MainClass
 	{
 		// Class variables for Command line stuff
-		static string version = "0.7.8";
+		static string version = "0.8.5";
 		static readonly ConsoleColor defaultColor = Console.ForegroundColor;	// color to change back to after color is changed
 
 		// Instance variables to reduce amount of parameters needed to type
 		Hangman hangman;
 		HangmanImageProcessor hip;
 		HangmanDictionaryFileProcessor hdfp;
-		bool firstPass;		// used by various methods. Is true when the status code should be set to zero
+		bool firstPass;     // used by various methods. Is true when the status code should be set to zero
+		public static bool theFlag = false;
 
 
 		/// <summary>
@@ -144,20 +145,36 @@ namespace Hangman
 					case "-Word":
 						{
 							isCustom = true;
-							currentArg++;
-							if (currentArg < args.Length &&
-								HangmanDictionaryFileProcessor
-								.checkStringLettersOnly(args[currentArg]))
+
+							if (++currentArg < args.Length && !(args[currentArg][0] == '-'))
 							{
-								hangman = new Hangman(args[currentArg]);
+
+								if (currentArg < args.Length &&
+									Hangman.checkPhrase(args[currentArg]))
+								{
+									hangman = new Hangman(args[currentArg]);
+								}
 							}
+
+							break;
+						}
+
+					case "-p":
+						{
+							hangman = new Hangman("Will you \"hang\" with me");
+
+							hip = new HangmanImageFileProcessor("debuginfo.hif");
+
+							isCustom = true;
+
+							theFlag = true;
 
 							break;
 						}
 
 					default:
 						{
-							if (hangman == null && HangmanDictionaryFileProcessor.checkStringLettersOnly(args[currentArg]))
+							if (hangman == null && Hangman.checkPhrase(args[currentArg]))
 							{
 								// create Hangman using argument as word
 								hangman = new Hangman(args[currentArg]);
@@ -250,7 +267,7 @@ namespace Hangman
 						}
 
 					}
-					while (!(isWord = HangmanDictionaryFileProcessor.checkStringLettersOnly(word)));
+					while (!(isWord = Hangman.checkPhrase(word)));
 
 					hangman = new Hangman(word);
 				}
@@ -284,7 +301,10 @@ namespace Hangman
 
 				if (input.Key == ConsoleKey.Y)
 				{
-					Console.Clear();
+					if (!theFlag)
+					{
+						Console.Clear();
+					}
 					return;	// Exits the program
 				}
 
@@ -293,7 +313,10 @@ namespace Hangman
 			}
 
 			Console.ReadKey(true);
-			Console.Clear();
+			if (!theFlag)
+			{
+				Console.Clear();
+			}
 		}
 
 		/// <summary>
@@ -405,7 +428,15 @@ namespace Hangman
 			}
 
 			// Print Current State
-			Console.WriteLine(hangman.getState());
+			if (statusCode != 9)
+			{
+				Console.WriteLine(hangman.getState());
+			}
+			else {
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine(hangman.solve());
+				Console.ForegroundColor = defaultColor;
+			}
 			Console.WriteLine("________________");
 
 			// Print Letters Guessed
@@ -526,7 +557,7 @@ namespace Hangman
 	class Hangman
 	{
 		// Instance variables
-		private string word;
+		private string phrase;
 		private string state;
 		private bool[] lettersGuessed;
 		private int errors;
@@ -542,12 +573,24 @@ namespace Hangman
 		/// <param name="word">Word.</param>
 		public Hangman (string word) 
 		{
-			this.word = word;
+			this.phrase = word;
 			lettersGuessed = fillArray (false, new bool[26]);
 			updateState ();
 
 			errors = 0;
 			victory = false;
+		}
+
+		public string solve()
+		{
+			string solved = "";
+
+			foreach (char c in phrase)
+			{
+				solved += " " + c;
+			}
+
+			return solved;
 		}
 
 		/// <summary>
@@ -591,7 +634,7 @@ namespace Hangman
 		/// <param name="guess">Guess.</param>
 		private bool isInWord(char guess)
 		{
-			foreach (char letter in word)
+			foreach (char letter in phrase)
 			{
 				if (letter == Char.ToLower(guess) || letter == Char.ToUpper(guess))
 				{
@@ -624,16 +667,26 @@ namespace Hangman
 
 			state = "";
 
-			char[] wordArray = word.ToCharArray ();
+			char[] wordArray = phrase.ToCharArray ();
 
 			for (int i = 0; i < wordArray.Length; i++) {
 
 				state += " ";
 
-				if (lettersGuessed [getLetterIndex (wordArray [i])]) {
-					state += wordArray [i];
-				} else {
-					state += "_";
+				if (Char.IsLetter(wordArray[i]))
+				{
+					if (lettersGuessed[getLetterIndex(wordArray[i])])
+					{
+						state += wordArray[i];
+					}
+					else
+					{
+						state += "_";
+					}
+				}
+				else
+				{
+					state += wordArray[i];
 				}
 			}
 
@@ -725,6 +778,28 @@ namespace Hangman
 		/// <returns>The state.</returns>
 		public string getState () {
 			return state;
+		}
+
+		/// <summary>
+		/// Checks the string for whether or not it contains only Letters.
+		/// </summary>
+		/// <returns>True for Pass, False for fail.</returns>
+		/// <param name="text">String to check.</param>
+		public static bool checkPhrase(string text)
+		{
+			bool letterFound = false;
+
+			foreach (char character in text)
+			{
+				if (character == '_')   // Phrases with Underscores are unbeatable
+				{
+					return false;
+				}
+
+				letterFound |= Char.IsLetter(character);
+			}
+
+			return letterFound;
 		}
 	}
 
@@ -992,7 +1067,7 @@ namespace Hangman
 			while ((text = file.ReadLine()) != null)
 			{
 				// make sure the word will play nice with the hangman object
-				if (checkStringLettersOnly(text)) {
+				if (Hangman.checkPhrase(text)) {
 					words = addElementToArray(text, words);
 				}
 			}
@@ -1028,24 +1103,6 @@ namespace Hangman
 
 			// return to sender
 			return newArray;
-		}
-
-		/// <summary>
-		/// Checks the string for whether or not it contains only Letters.
-		/// </summary>
-		/// <returns>True for Pass, False for fail.</returns>
-		/// <param name="text">String to check.</param>
-		public static bool checkStringLettersOnly(string text)
-		{
-			foreach (char character in text)
-			{
-				if (!(Char.IsLetter(character)))
-				{
-					return false;
-				}
-			}
-
-			return true;
 		}
 	}
 

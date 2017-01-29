@@ -1,0 +1,4 @@
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\bin\Release\Hangman.exe
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\bin\Release\Hangman.pdb
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Release\Hangman.exe
+C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Release\Hangman.pdb
