@@ -7,7 +7,7 @@ namespace Hangman
 	class MainClass
 	{
 		// Class variables for Command line stuff
-		static string version = "0.8.5";
+		static string version = "0.9.0";
 		static readonly ConsoleColor defaultColor = Console.ForegroundColor;	// color to change back to after color is changed
 
 		// Instance variables to reduce amount of parameters needed to type

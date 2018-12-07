@@ -6,3 +6,9 @@ C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\bin\Debug\Hangman.exe
 C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\bin\Debug\Hangman.pdb
 C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.exe
 C:\Users\madog\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.pdb
+C:\Users\DSU\Documents\GitHub\ConsoleHangman\Hangman\bin\Debug\Hangman.exe
+C:\Users\DSU\Documents\GitHub\ConsoleHangman\Hangman\bin\Debug\Hangman.pdb
+C:\Users\DSU\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.csprojAssemblyReference.cache
+C:\Users\DSU\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.csproj.CoreCompileInputs.cache
+C:\Users\DSU\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.exe
+C:\Users\DSU\Documents\GitHub\ConsoleHangman\Hangman\obj\x86\Debug\Hangman.pdb
